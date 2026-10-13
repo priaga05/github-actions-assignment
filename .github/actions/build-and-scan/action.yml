@@ -1,0 +1,78 @@
+
+name: Build, Push and Scan
+description: Build a Docker image, push it to GHCR, and scan it with Trivy
+
+inputs:
+  image_name:
+    description: Name of the container image
+    required: true
+  tag:
+    description: Image tag
+    required: true
+  dockerfile:
+    description: Path to the Dockerfile
+    required: false
+    default: Dockerfile
+  context:
+    description: Docker build context
+    required: false
+    default: .
+  build_args:
+    description: Optional single Docker build argument, such as VERSION=1.0
+    required: false
+    default: ""
+
+outputs:
+  image_uri:
+    description: Full URI of the pushed image
+    value: ${{ steps.image-info.outputs.image_uri }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare image URI
+      id: image-info
+      shell: bash
+      env:
+        IMAGE_NAME: ${{ inputs.image_name }}
+        IMAGE_TAG: ${{ inputs.tag }}
+        REGISTRY_USER: ${{ github.repository_owner }}
+      run: |
+        IMAGE_URI="ghcr.io/${REGISTRY_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+        IMAGE_URI=$(echo "$IMAGE_URI" | tr '[:upper:]' '[:lower:]')
+        echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+    - name: Build Docker image
+      shell: bash
+      env:
+        IMAGE_URI: ${{ steps.image-info.outputs.image_uri }}
+        DOCKERFILE: ${{ inputs.dockerfile }}
+        BUILD_CONTEXT: ${{ inputs.context }}
+        BUILD_ARGS: ${{ inputs.build_args }}
+      run: |
+        if [ -n "$BUILD_ARGS" ]; then
+          docker build --build-arg "$BUILD_ARGS" -f "$DOCKERFILE" -t "$IMAGE_URI" "$BUILD_CONTEXT"
+        else
+          docker build -f "$DOCKERFILE" -t "$IMAGE_URI" "$BUILD_CONTEXT"
+        fi
+
+    - name: Push Docker image
+      shell: bash
+      env:
+        IMAGE_URI: ${{ steps.image-info.outputs.image_uri }}
+      run: docker push "$IMAGE_URI"
+
+    - name: Scan pushed image with Trivy
+      uses: aquasecurity/trivy-action@0.33.1
+      with:
+        image-ref: ${{ steps.image-info.outputs.image_uri }}
+        format: sarif
+        output: trivy-results.sarif
+        severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
+        exit-code: '0'
+        ignore-unfixed: true
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results.sarif
