@@ -1,0 +1,22 @@
+name: Infrastructure Check
+
+on:
+  workflow_call:
+    inputs:
+      working_dir:
+        description: Terraform directory to scan
+        required: true
+        type: string
+
+jobs:
+  checkov:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ${{ inputs.working_dir }}
