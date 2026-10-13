@@ -1,7 +1,3 @@
-resource "aws_s3_bucket" "homework" {
-  bucket = "checkov-homework-priyam-2026"
-}
-
 resource "aws_s3_bucket_server_side_encryption_configuration" "homework" {
   bucket = aws_s3_bucket.homework.id
 
