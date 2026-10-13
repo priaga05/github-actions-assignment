@@ -63,7 +63,7 @@ runs:
       run: docker push "$IMAGE_URI"
 
     - name: Scan pushed image with Trivy
-      uses: aquasecurity/trivy-action@0.33.1
+      uses: uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ steps.image-info.outputs.image_uri }}
         format: sarif
