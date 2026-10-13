@@ -36,6 +36,14 @@ runs:
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ steps.info.outputs.image_uri }}
-        format: table
+        format: sarif
+        output: trivy-results.sarif
         exit-code: '0'
         severity: HIGH,CRITICAL
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results.sarif
+
+
